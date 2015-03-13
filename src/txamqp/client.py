@@ -94,6 +94,9 @@ class TwistedDelegate(Delegate):
     def basic_return_(self, ch, msg):
         self.client.basic_return_queue.put(msg)
 
+    def basic_ack(self, ch, msg):
+        ch.publish_confirms.put(msg)
+
     def channel_flow(self, ch, msg):
         ch.channel_flow_ok(active=msg.active)
 

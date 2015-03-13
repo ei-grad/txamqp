@@ -35,6 +35,9 @@ class AMQChannel(object):
         self.closed = False
         self.reason = None
 
+        self.use_publish_confirms = False
+        self.publish_confirms = TimeoutDeferredQueue()
+
     def close(self, reason):
         """Explicitely close a channel"""
         self._closing = True
@@ -82,8 +85,12 @@ class AMQChannel(object):
             nowait = False
 
         try:
+
             if not nowait and method.responses:
                 resp = (yield self.responses.get()).payload
+
+                if resp.method.klass.name == 'confirm' and resp.method.name == 'select-ok':
+                    self.use_publish_confirms = True
 
                 if resp.method.content:
                     content = yield readContent(self.responses)
@@ -93,6 +100,11 @@ class AMQChannel(object):
                     defer.returnValue(Message(resp.method, resp.args, content))
                 else:
                     raise ValueError(resp)
+
+            elif self.use_publish_confirms and method.name == 'publish' and method.klass.name == 'basic':
+                resp = yield self.publish_confirms.get()
+                defer.returnValue(resp.method.name == 'ack')
+
         except QueueClosed, e:
             if self.closed:
                 raise Closed(self.reason)
