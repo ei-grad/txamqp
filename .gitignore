@@ -1,0 +1,4 @@
+.bzr
+*.pyc
+*.egg-info
+*~
