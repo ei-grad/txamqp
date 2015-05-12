@@ -27,12 +27,16 @@ def default(val, defval):
   else:
     return val
 
+def property_name(k):
+    return k.replace('-', '_').replace(' ', '_')
+
 class Content(object):
 
   def __init__(self, body = "", children = None, properties = None):
     self.body = body
     self.children = default(children, [])
-    self.properties = default(properties, {})
+    self.properties = dict((property_name(k), v)
+                           for k, v in default(properties, {}).items())
 
   def size(self):
     return len(self.body)
@@ -41,13 +45,13 @@ class Content(object):
     return len(self.children)
 
   def __getitem__(self, name):
-    return self.properties[name]
+    return self.properties[property_name(name)]
 
   def __setitem__(self, name, value):
-    self.properties[name] = value
+    self.properties[property_name(name)] = value
 
   def __delitem__(self, name):
-    del self.properties[name]
+    del self.properties[property_name(name)]
 
   def __repr__(self):
     return '<%s instance: body=%r, children=%r, properties=%r>' % (
