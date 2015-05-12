@@ -243,7 +243,6 @@ class AMQClient(FrameReceiver):
         self.channelFactory = type("Channel%s" % self.spec.klass.__name__,
                                     (self.channelClass, self.spec.klass), {})
         self.channels = {}
-        self.channelLock = defer.DeferredLock()
 
         self.outgoing = defer.DeferredQueue()
         self.work = defer.DeferredQueue()
@@ -285,18 +284,10 @@ class AMQClient(FrameReceiver):
     def check_0_8(self):
         return (self.spec.minor, self.spec.major) == (0, 8)
 
-    @defer.inlineCallbacks
     def channel(self, id):
-        yield self.channelLock.acquire()
-        try:
-            try:
-                ch = self.channels[id]
-            except KeyError:
-                ch = self.channelFactory(id, self.outgoing, self)
-                self.channels[id] = ch
-        finally:
-            self.channelLock.release()
-        defer.returnValue(ch)
+        if id not in self.channels:
+            self.channels[id] = self.channelFactory(id, self.outgoing, self)
+        return defer.succeed(self.channels[id])
 
     @defer.inlineCallbacks
     def queue(self, key):
