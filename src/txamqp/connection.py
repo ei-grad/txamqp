@@ -17,10 +17,11 @@
 # under the License.
 #
 
-import codec
 from cStringIO import StringIO
-from twisted.python import log
+
 from spec import pythonize
+from content import property_name
+import codec
 
 class Frame(object):
 
@@ -108,15 +109,23 @@ class Header(Payload):
     self.properties = properties
 
   def __getitem__(self, name):
-    return self.properties[name]
+    return self.properties[property_name(name)]
 
   def __setitem__(self, name, value):
-    self.properties[name] = value
+    self.properties[property_name(name)] = value
 
   def __delitem__(self, name):
     del self.properties[name]
 
   def encode(self, enc):
+
+    # check properties
+    valid_props = set([property_name(f.name) for f in self.klass.fields])
+    unknown_props = set(map(property_name, self.properties)) - valid_props
+    assert not unknown_props, 'Unknown props: %s (known: %s)' % (
+        ','.join(unknown_props), ','.join(valid_props)
+    )
+
     buf = StringIO()
     c = codec.Codec(buf)
     c.encode_short(self.klass.id)
@@ -129,7 +138,7 @@ class Header(Payload):
     for i in range(nprops):
       f = self.klass.fields.items[i]
       flags <<= 1
-      if self.properties.get(f.name) != None:
+      if self.properties.get(property_name(f.name)) != None:
         flags |= 1
       # the last bit indicates more flags
       if i > 0 and (i % 15) == 0:
@@ -143,13 +152,9 @@ class Header(Payload):
 
     # properties
     for f in self.klass.fields:
-      v = self.properties.get(f.name)
+      v = self.properties.get(property_name(f.name))
       if v != None:
         c.encode(f.type, v)
-    unknown_props = set(self.properties.keys()) - \
-                    set([f.name for f in self.klass.fields])
-    if unknown_props:
-        log.msg("Unknown message properties: %s" % ", ".join(unknown_props))
 
     c.flush()
     enc.encode_longstr(buf.getvalue())
@@ -179,7 +184,7 @@ class Header(Payload):
         # Note: decode returns a unicode u'' string but only
         # plain '' strings can be used as keywords so we need to
         # stringify the names.
-        properties[str(f.name)] = c.decode(f.type)
+        properties[property_name(f.name)] = c.decode(f.type)
     return Header(klass, weight, size, **properties)
 
   def __str__(self):
