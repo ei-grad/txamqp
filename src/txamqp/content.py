@@ -28,7 +28,7 @@ def default(val, defval):
     return val
 
 def property_name(k):
-    return k.replace('-', '_').replace(' ', '_')
+    return k.replace('-', '_').replace(' ', '_').lower()
 
 class Content(object):
 
